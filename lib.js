@@ -42,6 +42,13 @@ function isObject(x) {
     return !!x && typeof x == "object";
 }
 
+function xmlEscape(input) {
+    return input
+        .replace(/&(?!(amp|lt|gt);)/g, "&amp;")
+        .replace(/>/g, "&gt;")
+        .replace(/</g, "&lt;");
+}
+
 /**
  * @param {string} input 
  * @param {number} amount 
@@ -271,7 +278,10 @@ function loopPath(obj, path, callback, _pathSoFar = []) {
 function transformJSON(json, transform)
 {
     if (json.resourceType === "Bundle") {
-        json.entry = (json.entry || []).map(entry => transformJSON(entry.resource, transform));
+        json.entry = (json.entry || []).map(entry => {
+            transformJSON(entry.resource, transform);
+            return entry;
+        });
         return json;
     }
 
@@ -340,9 +350,11 @@ function shift(options)
             onLeaf(path, value) {
                 let newValue = value;
                 if (xmlPaths.indexOf(path) > -1) {
-                    newValue = timeShift(value, options.shiftAmount, options.shiftUnits);
+                    newValue = xmlEscape(timeShift(value, options.shiftAmount, options.shiftUnits));
                 } else if (path.match(/\.text\.div\b/)) {
-                    newValue = shiftDatesInText(value, options.shiftAmount, options.shiftUnits);
+                    newValue = xmlEscape(shiftDatesInText(value, options.shiftAmount, options.shiftUnits));
+                } else if (!path.match(/Binary\.content\.value/)) {
+                    newValue = xmlEscape(value);
                 }
                 if (newValue !== value) {
                     transforms += 1;
